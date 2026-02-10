@@ -8,7 +8,11 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 const marker = L.marker([43.0731, -89.4012]).addTo(map);
 
-marker.bindPopup("<b>Hello!</b><br>This is Madison, WI.").openPopup();
+marker
+  .bindPopup(
+    "<b>Hello!</b><br>Welcome to Sustain Dane's Efficiency Navigator Program."
+  )
+  .openPopup();
 
 const circle = L.circle([43.075, -89.38], {
   color: "red",
