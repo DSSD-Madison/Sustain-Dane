@@ -1,14 +1,11 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
-import {Madison} from "@/components/Madison.jsx";
+import {MapBox} from "@/components/MapBox.jsx";
 
 function App() {
 
   return (
     <>
-      <Madison></Madison>
+      <MapBox></MapBox>
     </>
   )
 }
