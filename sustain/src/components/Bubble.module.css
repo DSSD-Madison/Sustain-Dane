@@ -1,27 +1,27 @@
 .bubble {
-    width: 80px;
-    height: 80px;
-    border: 2px solid #2ecc71; /* verde */
-    border-radius: 50%;
-    background-color: white;
+  width: 60px;
+  height: 60px;
+  border: 2px solid #2ecc71; /* verde */
+  border-radius: 50%;
+  background-color: white;
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 
-    font-family: sans-serif;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-family: sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .icon {
-    font-size: 18px;
-    color: #2ecc71;
-    margin-bottom: 4px;
+  font-size: 15px;
+  color: #2ecc71;
+  margin-bottom: 4px;
 }
 
 .value {
-    font-size: 14px;
-    font-weight: bold;
-    color: #2ecc71;
+  font-size: 10px;
+  font-weight: bold;
+  color: #2ecc71;
 }
