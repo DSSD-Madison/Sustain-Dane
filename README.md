@@ -3,4 +3,5 @@ Interactive Maps for Sustain Dane's Efficiency Navigator Program
 
 # To Run
 Install vite
-'npm run vite'
+
+```npm run vite```
