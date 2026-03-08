@@ -1,0 +1,9 @@
+.heat {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(0, 200, 0, 0.6); /* verde mais sólido */
+    border: 3px solid rgba(0, 150, 0, 0.9); /* borda bem visível */
+    transform: translate(-50%, -50%);
+    filter: blur(25px); /* blur para efeito de heat */
+    pointer-events: none;
+}
