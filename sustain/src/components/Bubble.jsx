@@ -4,7 +4,7 @@ export default function Bubble({ point }) {
 
     const co2Avoided = point?.infos?.[0]?.co2 ?? 0;
 
-    const size = Math.max(100, co2Avoided * 0.25);
+    const size = Math.max(100, co2Avoided * 0.23); // add a max
 
     return (
         <div
