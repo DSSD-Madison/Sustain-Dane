@@ -2,6 +2,10 @@
 Interactive Maps for Sustain Dane's Efficiency Navigator Program
 
 # To Run
-Install vite
+Change direction to 'sustain'\
+
+```cd sustain```
+
+Then, Install vite
 
 ```npm run vite```
