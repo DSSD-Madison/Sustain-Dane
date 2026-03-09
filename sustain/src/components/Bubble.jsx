@@ -1,6 +1,7 @@
 import styles from "./Bubble.module.css";
 
 export default function Bubble({ point }) {
+  const co2Avoided = point?.infos?.[0]?.co2 ?? 0;
 
     const co2Avoided = point?.infos?.[0]?.co2 ?? 0;
 
