@@ -243,6 +243,55 @@ export function TraceMap() {
             streetB: "Trailsway",
             coordinate: { lat: 43.0459921, lng: -89.4103377 },
             infos:[{ co2: 570, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "Northport Dr. / Northridge Terrace, Madison WI",
+            streetA: "Northport Dr.",
+            streetB: "Northridge Terrace",
+            coordinate: { lat: 43.13933, lng: -89.38688 },
+            infos:[{ co2: 1231, kWh: 6310, VMT: 3054 }]
+        },
+        {
+            original: "Danbury St. / Lumley Rd., Madison WI",
+            streetA: "Danbury St.",
+            streetB: "Lumley Rd.",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "N Oak St. / Hoard St., Madison WI",
+            streetA: "N Oak St.",
+            streetB: "Hoard St.",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "Hayes Rd. / Willage Green Lane E, Madison WI",
+            streetA: "Hayes Rd.",
+            streetB: "Willage Green Lane E",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "Balsam Rd. / Leland Dr., Madison WI",
+            streetA: "Balsam Rd.",
+            streetB: "Leland Dr.",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "Balsam Rd. / Thrush Ln, Madison WI",
+            streetA: "Balsam Rd.",
+            streetB: "Thrush Ln",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
+        },
+        {
+            original: "Mayfair Ave. / Lexington Ave., Madison WI",
+            streetA: "Mayfair Ave.",
+            streetB: "Lexington Ave.",
+            coordinate: { lat: 43.0751656, lng: -89.4503393 },
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
         }
     ]);
 
