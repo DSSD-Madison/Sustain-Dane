@@ -47,14 +47,14 @@
 }
 
 .icon{
-    width:22px;
+    width:18px;
     margin-bottom:2px;
 }
 
 .header{
     display:flex;
     gap:6px;
-    font-size:15px;
+    font-size:13px;
     color:#444;
 }
 
@@ -66,13 +66,13 @@
 }
 
 .value{
-    font-size:20px;
+    font-size:12px;
     font-weight:700;
     line-height:1;
     color:#222;
 }
 
 .unit{
-    font-size:13px;
+    font-size:10px;
     color:#6a6a6a;
 }
