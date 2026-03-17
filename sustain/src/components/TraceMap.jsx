@@ -249,7 +249,7 @@ export function TraceMap() {
             streetA: "Northport Dr.",
             streetB: "Northridge Terrace",
             coordinate: { lat: 43.13933, lng: -89.38688 },
-            infos:[{ co2: 1231, kWh: 6310, VMT: 3054 }]
+            infos:[{ co2: 470, kWh: 39, VMT: 1665 }]
         },
         {
             original: "Danbury St. / Lumley Rd., Madison WI",
