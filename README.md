@@ -7,5 +7,8 @@ Change direction to 'sustain'\
 ```cd sustain```
 
 Then, Install vite
+```npm install```
+
+Finall, to run:
 
 ```npm run vite```
