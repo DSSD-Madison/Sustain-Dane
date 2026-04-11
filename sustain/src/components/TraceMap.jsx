@@ -149,7 +149,7 @@ export function TraceMap() {
 
     return (
         <div className={styles.father}>
-            <button onClick={toggleModo}>Change style</button>
+            <button onClick={toggleModo} >Change style</button>
             <Map
                 center={center}
                 zoom={13}

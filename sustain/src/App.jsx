@@ -1,11 +1,13 @@
 import './App.css'
 import {MapBox} from "@/components/MapBox.jsx";
+import InteractiveMap from "@/components/InteractiveMap.jsx";
 
 function App() {
 
   return (
     <>
-      <MapBox></MapBox>
+      {/*<MapBox></MapBox>*/}
+      <InteractiveMap></InteractiveMap>
     </>
   )
 }
