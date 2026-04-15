@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { MapContainer, TileLayer, Marker, Circle, ZoomControl, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
-import { PieChart, Pie, Cell, ResponsiveContainer, Text } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import 'leaflet/dist/leaflet.css';
 
-// --- TRANSLATED DATA SAMPLES ---
+// --- OLD HARD-CODED SAMPLE DATA (replaced by automatic loading) ---
+/*
 const data = [
     {
         id: 1,
@@ -21,6 +23,167 @@ const data = [
         infos: [{ co2: 850, kWh: 310, co2Goal: 1000, kWhGoal: 500 }]
     }
 ];
+*/
+
+const TARGET_SHEETS = [
+    "OEI by Measure",
+    "CDBG and ARPA by Measure",
+    "Madison Capital 2024",
+    "Madison Capital & EECBG 2025",
+];
+
+// helper functions copied from old TraceMap
+function normalizeText(value) {
+    return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function toNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function splitStreetParts(original) {
+    const cleaned = normalizeText(original);
+    const parts = cleaned.split("/").map((s) => s.trim());
+    return {
+        streetA: parts[0] ?? cleaned,
+        streetB: parts[1] ?? "",
+    };
+}
+
+function resolveCrossStreetHeader(headers) {
+    for (const header of headers) {
+        const lower = String(header).toLowerCase().trim();
+        if (lower.includes("cross street")) return header;
+    }
+    return null;
+}
+
+function resolveImplementationValue(row, headers, sheetName) {
+    if (sheetName === "CDBG and ARPA by Measure") {
+        const headerIndex = headers.findIndex((h) =>
+            String(h).toLowerCase().includes("implementation")
+        );
+
+        if (headerIndex > 0) {
+            const leftHeader = headers[headerIndex - 1];
+            const leftValue = row[leftHeader];
+            if (normalizeText(leftValue) !== "") return leftValue;
+        }
+    }
+
+    if (normalizeText(row["Implementation: Implementation"]) !== "") {
+        return row["Implementation: Implementation"];
+    }
+
+    if (normalizeText(row["Implementation"]) !== "") {
+        return row["Implementation"];
+    }
+
+    for (const header of headers) {
+        const lower = String(header).toLowerCase().trim();
+
+        if (
+            lower.includes("implementation") ||
+            lower.includes("therms projected")
+        ) {
+            const value = row[header];
+            if (typeof value === "string" && normalizeText(value) !== "") {
+                return value;
+            }
+        }
+    }
+
+    for (let i = 0; i < headers.length; i++) {
+        const lower = String(headers[i]).toLowerCase().trim();
+        if (
+            lower.includes("implementation") ||
+            lower.includes("therms projected")
+        ) {
+            if (i > 0) {
+                const leftHeader = headers[i - 1];
+                const leftValue = row[leftHeader];
+                if (
+                    typeof leftValue === "string" &&
+                    normalizeText(leftValue) !== ""
+                ) {
+                    return leftValue;
+                }
+            }
+        }
+    }
+
+    return "";
+}
+
+function parseWorkbook(workbook) {
+    const streetMap = new globalThis.Map();
+
+    for (const sheetName of TARGET_SHEETS) {
+        const sheet = workbook.Sheets[sheetName];
+        if (!sheet) continue;
+
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+            defval: "",
+            raw: true,
+        });
+
+        if (!rows.length) continue;
+
+        const headers = Object.keys(rows[0]);
+        const crossStreetHeader = resolveCrossStreetHeader(headers);
+
+        if (!crossStreetHeader) continue;
+
+        let currentStreet = "";
+
+        for (const row of rows) {
+            const rowStreet = normalizeText(row[crossStreetHeader]);
+
+            if (rowStreet !== "") {
+                currentStreet = rowStreet;
+            }
+
+            if (currentStreet === "") continue;
+
+            const implementation = normalizeText(
+                resolveImplementationValue(row, headers, sheetName)
+            );
+
+            const kWh = toNumber(row["kWh Projected Savings"]);
+            const co2 = toNumber(row["Yearly CO2 Emissions Savings (kg)"]);
+            const VMT = toNumber(row["Projected VMT Avoided"]);
+
+            if (!streetMap.has(currentStreet)) {
+                const parts = splitStreetParts(currentStreet);
+                streetMap.set(currentStreet, {
+                    original: currentStreet,
+                    street: currentStreet, // added for compatibility with existing Leaflet UI
+                    streetA: parts.streetA,
+                    streetB: parts.streetB,
+                    infos: [],
+                });
+            }
+
+            if (
+                implementation !== "" &&
+                !implementation.toLowerCase().includes("total measures")
+            ) {
+                streetMap.get(currentStreet).infos.push({
+                    implement: implementation,
+                    co2,
+                    kWh,
+                    VMT,
+                    // keep existing donut-chart UI working
+                    co2Goal: 1000,
+                    kWhGoal: 500,
+                });
+            }
+        }
+    }
+
+    return Array.from(streetMap.values());
+}
 
 // --- STYLIZED DONUT CHART ---
 const DonutChart = ({ value, goal, color }) => {
@@ -89,10 +252,50 @@ export default function SustainabilityDashboard() {
     const [showHeatmap, setShowHeatmap] = useState(true);
     const [selectedLocation, setSelectedLocation] = useState(null);
 
+    // new automatic data state
+    const [data, setData] = useState([]);
+
+    useEffect(() => {
+        async function loadAutoLocations() {
+            try {
+                const [excelResponse, coordResponse] = await Promise.all([
+                    fetch("/data/Efficiency Navigator Program - Data Support Group (2).xlsx"),
+                    fetch("/data/cross_street_coords.json"),
+                ]);
+
+                const arrayBuffer = await excelResponse.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: "array" });
+                const coordMap = await coordResponse.json();
+
+                const parsedPoints = parseWorkbook(workbook);
+
+                const pointsWithCoords = parsedPoints
+                    .map((point, index) => {
+                        const coordinate = coordMap[point.original];
+                        if (!coordinate) return null;
+
+                        return {
+                            ...point,
+                            id: index + 1, // added for compatibility with existing UI
+                            coordinate,
+                            // optional placeholder since old Leaflet sidebar expects story
+                            story: point.infos?.[0]?.implement || "No story available yet.",
+                        };
+                    })
+                    .filter(Boolean);
+
+                setData(pointsWithCoords);
+            } catch (error) {
+                console.error("Failed to load map locations:", error);
+            }
+        }
+
+        loadAutoLocations();
+    }, []);
+
     return (
         <div style={{ width: '100%', height: '100vh', position: 'relative', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
 
-            {/* --- HEATMAP TOGGLE MENU --- */}
             <div style={{
                 position: 'absolute', bottom: '30px', right: '30px', zIndex: 1000,
                 background: 'white', padding: '12px 20px', borderRadius: '50px',
@@ -117,7 +320,6 @@ export default function SustainabilityDashboard() {
                 </button>
             </div>
 
-            {/* --- SIDEBAR PANEL --- */}
             <div style={{
                 position: 'absolute', top: 0, right: selectedLocation ? 0 : '-420px',
                 width: '380px', height: '100%', background: 'white', zIndex: 1100,
@@ -143,31 +345,28 @@ export default function SustainabilityDashboard() {
 
                         <h3 style={{ fontSize: '16px', color: '#374151', marginBottom: '20px', fontWeight: '700' }}>Sustainability Metrics</h3>
 
-                        {/* ABSOLUTE VALUES CARDS */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {/* Carbon Card */}
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '15px', background: '#f0fdf4', borderRadius: '15px', border: '1px solid #dcfce7'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <DonutChart value={selectedLocation.infos[0].co2} goal={selectedLocation.infos[0].co2Goal} color="#16a34a" />
+                                    <DonutChart value={selectedLocation.infos[0]?.co2 ?? 0} goal={selectedLocation.infos[0]?.co2Goal ?? 1000} color="#16a34a" />
                                     <div>
-                                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#16a34a' }}>{selectedLocation.infos[0].co2} kg</div>
+                                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#16a34a' }}>{selectedLocation.infos[0]?.co2 ?? 0} kg</div>
                                         <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '600' }}>Carbon Saved</div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Energy Card */}
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '15px', background: '#eff6ff', borderRadius: '15px', border: '1px solid #dbeafe'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <DonutChart value={selectedLocation.infos[0].kWh} goal={selectedLocation.infos[0].kWhGoal} color="#2563eb" />
+                                    <DonutChart value={selectedLocation.infos[0]?.kWh ?? 0} goal={selectedLocation.infos[0]?.kWhGoal ?? 500} color="#2563eb" />
                                     <div>
-                                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#2563eb' }}>{selectedLocation.infos[0].kWh} kWh</div>
+                                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#2563eb' }}>{selectedLocation.infos[0]?.kWh ?? 0} kWh</div>
                                         <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>Energy Saved</div>
                                     </div>
                                 </div>
@@ -177,7 +376,6 @@ export default function SustainabilityDashboard() {
                 )}
             </div>
 
-            {/* --- MAP COMPONENT --- */}
             <MapContainer
                 center={[43.0745, -89.4170]}
                 zoom={14}
@@ -186,7 +384,7 @@ export default function SustainabilityDashboard() {
             >
                 <TileLayer
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; OpenStreetMap'
+                    attribution="&copy; OpenStreetMap"
                 />
                 <ZoomControl position="topleft" />
 
@@ -218,7 +416,7 @@ export default function SustainabilityDashboard() {
                                     click: () => setSelectedLocation(item),
                                 }}
                             >
-                                {!selectedLocation && <Tooltip direction="top" offset={[0, -10]}>Click for details</Tooltip>}
+                                {!selectedLocation && <Tooltip direction="top" offset={[0, -10]}>{item.street}</Tooltip>}
                             </Marker>
                         </React.Fragment>
                     );

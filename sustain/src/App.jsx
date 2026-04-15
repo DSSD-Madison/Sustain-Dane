@@ -7,7 +7,7 @@ function App() {
   return (
     <>
       {/*<MapBox></MapBox>*/}
-      <InteractiveMap></InteractiveMap>
+      {<InteractiveMap></InteractiveMap>}
     </>
   )
 }
