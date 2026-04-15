@@ -23,8 +23,7 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss": "^4.1.18",
-    "xlsx": "^0.18.5"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
