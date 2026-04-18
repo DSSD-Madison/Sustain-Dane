@@ -10,6 +10,7 @@ import {
   ZoomControl,
   Tooltip,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import {
@@ -90,10 +91,11 @@ function markerScaleForZoom(zoom) {
   return Math.min(1.9, Math.max(0.38, Math.pow(1.35, delta)));
 }
 
-function FitMapToData({ points }) {
+function FitMapToData({ points, geolocationSettled, browserGeo }) {
   const map = useMap();
   useEffect(() => {
-    if (!points?.length) return;
+    if (!points?.length || !geolocationSettled) return;
+    if (browserGeo) return;
     const latlngs = points.map((p) => [p.coordinate.lat, p.coordinate.lng]);
     if (latlngs.length === 1) {
       map.setView(latlngs[0], 15);
@@ -101,11 +103,51 @@ function FitMapToData({ points }) {
     }
     const b = L.latLngBounds(latlngs);
     map.fitBounds(b, { padding: [64, 64], maxZoom: 15 });
-  }, [map, points]);
+  }, [map, points, geolocationSettled, browserGeo]);
+  return null;
+}
+
+/** After the user allows browser location, zoom to their nearest intersection (once). */
+function FlyToNearestFromBrowserGeo({ userPoint, points }) {
+  const map = useMap();
+  const didRunRef = useRef(false);
+
+  useEffect(() => {
+    if (!userPoint || !points?.length || didRunRef.current) return;
+    const result = findClosestIntersection(userPoint, points);
+    if (!result) return;
+    didRunRef.current = true;
+    const { intersection, meters } = result;
+    const intersectionLatLng = [
+      intersection.coordinate.lat,
+      intersection.coordinate.lng,
+    ];
+    if (meters > 150_000) {
+      map.setView(intersectionLatLng, 14);
+      return;
+    }
+    const b = L.latLngBounds(
+      [userPoint.lat, userPoint.lng],
+      intersectionLatLng,
+    );
+    map.fitBounds(b, { padding: [72, 72], maxZoom: 16, animate: true });
+  }, [map, userPoint, points]);
+
   return null;
 }
 
 /** Keeps React state in sync with map zoom (batched with rAF for smooth zoom animations). */
+/** Close the detail sidebar when the map (not a marker) is clicked. */
+function MapClickCloseSidebar({ hasSelection, suppressRef, onClose }) {
+  useMapEvents({
+    click: () => {
+      if (suppressRef.current) return;
+      if (hasSelection) onClose();
+    },
+  });
+  return null;
+}
+
 function MapZoomSync({ onZoomChange }) {
   const map = useMap();
   const rafRef = useRef(0);
@@ -396,27 +438,269 @@ function parseWorkbook(workbook) {
   return Array.from(streetMap.values());
 }
 
+/** ~kg CO₂ per mile, typical passenger car (EPA order-of-magnitude). */
+const KG_CO2_PER_CAR_MILE = 0.404;
+/** ~kg CO₂ per gallon gasoline combusted (well-to-pump ballpark). */
+const KG_CO2_PER_GALLON_GAS = 8.89;
+
+function formatEverydayMiles(miles) {
+  if (miles < 1.5) return "about 1";
+  if (miles < 10)
+    return String(Math.round(miles * 10) / 10).replace(/\.0$/, "");
+  if (miles < 100) return String(Math.round(miles));
+  return String(Math.round(miles / 5) * 5);
+}
+
+function formatGasGallons(gal) {
+  if (gal < 10) return String(Math.round(gal * 10) / 10).replace(/\.0$/, "");
+  return String(Math.round(gal));
+}
+
+/** Plain-language CO₂ context for non-expert readers. */
+function SidebarCo2Explainer({ kgAnnual }) {
+  const kg = Math.max(0, Number(kgAnnual) || 0);
+  const milesEq = kg > 0 ? kg / KG_CO2_PER_CAR_MILE : 0;
+  const galEq = kg > 0 ? kg / KG_CO2_PER_GALLON_GAS : 0;
+
+  return (
+    <div
+      style={{
+        marginTop: "12px",
+        padding: "14px 16px",
+        background: "#fafafa",
+        borderRadius: "12px",
+        border: "1px solid #e7e5e4",
+      }}
+    >
+      <p
+        style={{
+          fontSize: "13px",
+          color: "#44403c",
+          lineHeight: 1.65,
+          margin: "0 0 10px 0",
+        }}
+      >
+        <strong style={{ color: "#292524" }}>What this number means:</strong>{" "}
+        Carbon dioxide (CO₂) is a greenhouse gas that traps heat in the
+        atmosphere. The figure above is an{" "}
+        <strong>estimated yearly amount</strong> of CO₂ this work helps{" "}
+        <strong>avoid releasing</strong>—for example from using less energy or
+        burning less fuel—compared to not doing the upgrade.
+      </p>
+      {kg <= 0 ? (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#78716c",
+            lineHeight: 1.65,
+            margin: 0,
+            fontStyle: "italic",
+          }}
+        >
+          No CO₂ savings are listed for this row in the spreadsheet.
+        </p>
+      ) : (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#44403c",
+            lineHeight: 1.65,
+            margin: 0,
+          }}
+        >
+          <strong style={{ color: "#292524" }}>In everyday terms:</strong>{" "}
+          {milesEq < 2 ? (
+            <>
+              This is a smaller yearly amount, but small savings add up across
+              many buildings. Even modest cuts help slow climate change over
+              time.
+            </>
+          ) : (
+            <>
+              As a rough comparison only: it is in the same ballpark as the
+              pollution from driving a typical passenger car about{" "}
+              <strong>{formatEverydayMiles(milesEq)} miles</strong>, or burning
+              about <strong>{formatGasGallons(galEq)} gallons</strong> of
+              gasoline. Real projects will differ; think of this as a relatable
+              scale, not an exact match.
+            </>
+          )}
+        </p>
+      )}
+      <p
+        style={{
+          fontSize: "11px",
+          color: "#a8a29e",
+          lineHeight: 1.5,
+          margin: "12px 0 0 0",
+        }}
+      >
+        * These are all estimates. For decisions or more accurate reporting,
+        contact Sustain Dane.
+      </p>
+    </div>
+  );
+}
+
+/** Rough equivalents for “everyday terms” (order-of-magnitude only). */
+const KWH_PER_HAIR_DRYER_KW = 1;
+const KWH_PER_FRIDGE_YEAR = 450;
+
+/** Plain-language kWh / energy context for non-expert readers. */
+function SidebarKwhExplainer({ kwhAnnual }) {
+  const raw = Number(kwhAnnual);
+  const kwh = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+  const dryerHoursAt1kW = kwh > 0 ? kwh / KWH_PER_HAIR_DRYER_KW : 0;
+  const fridgeShare = kwh > 0 ? (kwh / KWH_PER_FRIDGE_YEAR) * 100 : 0;
+
+  return (
+    <div
+      style={{
+        marginTop: "12px",
+        padding: "14px 16px",
+        background: "#f8fafc",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+      }}
+    >
+      <p
+        style={{
+          fontSize: "13px",
+          color: "#334155",
+          lineHeight: 1.65,
+          margin: "0 0 10px 0",
+        }}
+      >
+        <strong style={{ color: "#1e293b" }}>What this number means:</strong> A{" "}
+        <strong>kilowatt-hour (kWh)</strong> is a unit of{" "}
+        <strong>energy</strong>—how much electricity you use over time. On a
+        utility bill, your usage is often listed in kWh. The figure above is an{" "}
+        <strong>estimated yearly amount</strong> of electricity this work helps{" "}
+        <strong>save</strong> (less power needed for heating, cooling, lighting,
+        and equipment) compared to not doing the upgrade.
+      </p>
+      {Number.isFinite(raw) && raw < 0 ? (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#64748b",
+            lineHeight: 1.65,
+            margin: 0,
+            fontStyle: "italic",
+          }}
+        >
+          This row has a <strong>negative</strong> kWh value in the data. That
+          can happen from how savings are modeled or from a data entry issue.
+          The ring chart treats it as <strong>no progress</strong> toward the
+          goal so the graphic stays readable.
+        </p>
+      ) : kwh <= 0 ? (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#64748b",
+            lineHeight: 1.65,
+            margin: 0,
+            fontStyle: "italic",
+          }}
+        >
+          No electricity savings are listed for this row in the spreadsheet.
+        </p>
+      ) : dryerHoursAt1kW < 3 ? (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#334155",
+            lineHeight: 1.65,
+            margin: 0,
+          }}
+        >
+          <strong style={{ color: "#1e293b" }}>In everyday terms:</strong> This
+          is a smaller yearly amount on its own, but small savings add up across
+          many homes and buildings. A kilowatt-hour is still the same idea:
+          about one hour of a strong 1,000-watt appliance running at full power.
+        </p>
+      ) : (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#334155",
+            lineHeight: 1.65,
+            margin: 0,
+          }}
+        >
+          <strong style={{ color: "#1e293b" }}>In everyday terms:</strong> One
+          kWh is about what you use running a <strong>1,000-watt</strong>{" "}
+          appliance (like a powerful hair dryer or small space heater on high)
+          for <strong>one hour</strong>. So{" "}
+          <strong>{Math.round(kwh)} kWh</strong> saved per year is in the same
+          ballpark as running that 1,000-watt load for about{" "}
+          <strong>{Math.round(dryerHoursAt1kW)} hours</strong> total over the
+          year— spread across many devices and seasons in real life. Another
+          picture: it is roughly{" "}
+          <strong>
+            {fridgeShare < 1 ? "under 1" : Math.round(fridgeShare)}%
+          </strong>{" "}
+          of the electricity a typical home refrigerator might use in a year (
+          {KWH_PER_FRIDGE_YEAR} kWh is a common rough estimate). Your building
+          will differ; treat this as a relatable scale.
+        </p>
+      )}
+      <p
+        style={{
+          fontSize: "11px",
+          color: "#94a3b8",
+          lineHeight: 1.5,
+          margin: "12px 0 0 0",
+        }}
+      >
+        * These are all estimates. For decisions or more accurate reporting,
+        contact Sustain Dane.
+      </p>
+    </div>
+  );
+}
+
 // --- STYLIZED DONUT CHART ---
 const DonutChart = ({ value, goal, color }) => {
+  const v = Number(value);
+  const g = Number(goal);
+  const safeGoal =
+    Number.isFinite(g) && g > 0 ? g : 500;
+  const rawVal = Number.isFinite(v) ? v : 0;
+  const achieved = Math.min(Math.max(0, rawVal), safeGoal);
+  const remaining = Math.max(0, safeGoal - achieved);
+
   const chartData = [
-    { name: "Achieved", value: value },
-    { name: "Remaining", value: Math.max(0, goal - value) },
+    { name: "Achieved", value: achieved },
+    { name: "Remaining", value: remaining },
   ];
 
   return (
-    <div style={{ width: "100px", height: "100px" }}>
+    <div
+      style={{
+        width: "132px",
+        height: "132px",
+        flexShrink: 0,
+        minWidth: "132px",
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+        <PieChart
+          margin={{ top: 4, right: 4, bottom: 4, left: 4 }}
+          style={{ overflow: "visible" }}
+        >
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
-            innerRadius={30}
-            outerRadius={42}
-            paddingAngle={5}
+            innerRadius="34%"
+            outerRadius="48%"
+            paddingAngle={2}
             dataKey="value"
             startAngle={90}
             endAngle={-270}
+            stroke="none"
           >
             <Cell fill={color} stroke="none" />
             <Cell fill="#f3f4f6" stroke="none" />
@@ -465,7 +749,7 @@ function createIntersectionIcon(isActive, zoom = MARKER_REFERENCE_ZOOM) {
 
 export default function SustainabilityDashboard() {
   const [hoveredId, setHoveredId] = useState(null);
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // new automatic data state
@@ -480,6 +764,31 @@ export default function SustainabilityDashboard() {
   const [searchNearest, setSearchNearest] = useState(null);
   const [searchDistanceM, setSearchDistanceM] = useState(null);
   const [mapZoom, setMapZoom] = useState(MARKER_REFERENCE_ZOOM);
+  const [browserGeo, setBrowserGeo] = useState(null);
+  const [geolocationSettled, setGeolocationSettled] = useState(false);
+  const mapClickSuppressCloseRef = useRef(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeolocationSettled(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setBrowserGeo({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setGeolocationSettled(true);
+      },
+      () => setGeolocationSettled(true),
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000,
+      },
+    );
+  }, []);
 
   useEffect(() => {
     async function loadAutoLocations() {
@@ -648,7 +957,8 @@ export default function SustainabilityDashboard() {
     <div
       style={{
         width: "100%",
-        height: "100vh",
+        height: "100%",
+        minHeight: "100dvh",
         position: "relative",
         overflow: "hidden",
         backgroundColor: "#f3f4f6",
@@ -704,7 +1014,7 @@ export default function SustainabilityDashboard() {
         onSubmit={handleFindNearestIntersection}
         style={{
           position: "absolute",
-          top: "72px",
+          top: "16px",
           left: "16px",
           zIndex: 1000,
           width: "min(340px, calc(100vw - 32px))",
@@ -933,7 +1243,7 @@ export default function SustainabilityDashboard() {
                 marginBottom: "30px",
               }}
             >
-              Madison, Wisconsin
+              Efficiency Navigator
             </p>
 
             <h3
@@ -987,14 +1297,20 @@ export default function SustainabilityDashboard() {
                 }}
               >
                 <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    minWidth: 0,
+                    overflow: "visible",
+                  }}
                 >
                   <DonutChart
                     value={selectedLocation.infos[0]?.co2 ?? 0}
                     goal={selectedLocation.infos[0]?.co2Goal ?? 1000}
                     color="#16a34a"
                   />
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div
                       style={{
                         fontSize: "22px",
@@ -1011,11 +1327,15 @@ export default function SustainabilityDashboard() {
                         fontWeight: "600",
                       }}
                     >
-                      Carbon Saved
+                      Carbon dioxide avoided (estimated per year)
                     </div>
                   </div>
                 </div>
               </div>
+
+              <SidebarCo2Explainer
+                kgAnnual={selectedLocation.infos[0]?.co2 ?? 0}
+              />
 
               <div
                 style={{
@@ -1029,14 +1349,20 @@ export default function SustainabilityDashboard() {
                 }}
               >
                 <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    minWidth: 0,
+                    overflow: "visible",
+                  }}
                 >
                   <DonutChart
                     value={selectedLocation.infos[0]?.kWh ?? 0}
                     goal={selectedLocation.infos[0]?.kWhGoal ?? 500}
                     color="#2563eb"
                   />
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div
                       style={{
                         fontSize: "22px",
@@ -1053,11 +1379,15 @@ export default function SustainabilityDashboard() {
                         fontWeight: "600",
                       }}
                     >
-                      Energy Saved
+                      Electricity saved (estimated per year)
                     </div>
                   </div>
                 </div>
               </div>
+
+              <SidebarKwhExplainer
+                kwhAnnual={selectedLocation.infos[0]?.kWh ?? 0}
+              />
             </div>
           </>
         )}
@@ -1073,9 +1403,22 @@ export default function SustainabilityDashboard() {
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution="&copy; OpenStreetMap"
         />
-        <ZoomControl position="topleft" />
+        <ZoomControl position="bottomleft" />
+        <MapClickCloseSidebar
+          hasSelection={!!selectedLocation}
+          suppressRef={mapClickSuppressCloseRef}
+          onClose={() => {
+            setSelectedLocation(null);
+            setHoveredId(null);
+          }}
+        />
         <MapZoomSync onZoomChange={setMapZoom} />
-        <FitMapToData points={data} />
+        <FitMapToData
+          points={data}
+          geolocationSettled={geolocationSettled}
+          browserGeo={browserGeo}
+        />
+        <FlyToNearestFromBrowserGeo userPoint={browserGeo} points={data} />
         <FlyToAddressSearch
           userPoint={searchUserPoint}
           intersection={searchNearest}
@@ -1113,6 +1456,25 @@ export default function SustainabilityDashboard() {
           </CircleMarker>
         )}
 
+        {browserGeo &&
+          (!searchUserPoint ||
+            distanceMeters(browserGeo, searchUserPoint) > 75) && (
+            <CircleMarker
+              center={[browserGeo.lat, browserGeo.lng]}
+              radius={Math.max(5, Math.round(7 * markerScaleForZoom(mapZoom)))}
+              pathOptions={{
+                color: "#6d28d9",
+                fillColor: "#a78bfa",
+                fillOpacity: 1,
+                weight: 2,
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -8]} permanent={false}>
+                Your location
+              </Tooltip>
+            </CircleMarker>
+          )}
+
         {data.map((item) => {
           const isActive =
             hoveredId === item.id ||
@@ -1142,7 +1504,16 @@ export default function SustainabilityDashboard() {
                 eventHandlers={{
                   mouseover: () => setHoveredId(item.id),
                   mouseout: () => setHoveredId(null),
-                  click: () => setSelectedLocation(item),
+                  click: (e) => {
+                    mapClickSuppressCloseRef.current = true;
+                    if (e?.originalEvent) {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                    }
+                    setSelectedLocation(item);
+                    setTimeout(() => {
+                      mapClickSuppressCloseRef.current = false;
+                    }, 0);
+                  },
                 }}
               >
                 {!selectedLocation && (
