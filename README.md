@@ -12,6 +12,6 @@ Then, Install vite
 
 `npm install`
 
-Finally, Run:
+Finally, to run:
 
 `npm run dev`
