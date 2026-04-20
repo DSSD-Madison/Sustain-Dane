@@ -406,6 +406,9 @@ function parseWorkbook(workbook) {
       const kWh = toNumber(row["kWh Projected Savings"]);
       const co2 = toNumber(row["Yearly CO2 Emissions Savings (kg)"]);
       const VMT = toNumber(row["Projected VMT Avoided"]);
+      const totalDollars = toNumber(row["Total Projected Savings"]);
+      const tenantDollars = toNumber(row["Tenant Projected Savings ($)"]);
+      const ownerDollars = toNumber(row["Owner Projected Savings ($)"]);
 
       if (!streetMap.has(currentStreet)) {
         const parts = splitStreetParts(currentStreet);
@@ -427,6 +430,10 @@ function parseWorkbook(workbook) {
           co2,
           kWh,
           VMT,
+          totalDollars,
+          tenantDollars,
+          ownerDollars,
+          sourceSheet: sheetName,
           // keep existing donut-chart UI working
           co2Goal: 1000,
           kWhGoal: 500,
@@ -743,8 +750,192 @@ function SidebarVmtExplainer({ milesAnnual }) {
 }
 
 /**
- * Summary card that adds up CO₂, kWh, and VMT across every measure listed for
- * the selected intersection (not just the first one shown above).
+ * Hero card shown ABOVE the Sustainability Metrics section. It surfaces the
+ * `Total Projected Savings` dollar column (and Tenant / Owner breakdown) that
+ * lives in the Madison Capital 2024 sheet (and parallel columns in the other
+ * program sheets), summed across every measure for the selected intersection.
+ */
+function SidebarTotalDollarSavings({ infos }) {
+  const list = Array.isArray(infos) ? infos : [];
+  const totals = list.reduce(
+    (acc, info) => {
+      const total = Number(info?.totalDollars);
+      const tenant = Number(info?.tenantDollars);
+      const owner = Number(info?.ownerDollars);
+      if (Number.isFinite(total)) acc.total += total;
+      if (Number.isFinite(tenant)) acc.tenant += tenant;
+      if (Number.isFinite(owner)) acc.owner += owner;
+      const sheet = info?.sourceSheet;
+      if (sheet) acc.sheets.add(sheet);
+      return acc;
+    },
+    { total: 0, tenant: 0, owner: 0, sheets: new Set() },
+  );
+
+  const sheetList = Array.from(totals.sheets);
+  const fmtDollars = (n) =>
+    Number.isFinite(n) && n > 0
+      ? `$${Math.round(n).toLocaleString()}`
+      : "Data not available";
+  const totalIsMissing = !(Number.isFinite(totals.total) && totals.total > 0);
+
+  return (
+    <div
+      style={{
+        marginBottom: "30px",
+        padding: "20px",
+        background: "linear-gradient(135deg, #064e3b 0%, #047857 100%)",
+        borderRadius: "16px",
+        color: "white",
+        boxShadow: "0 8px 24px rgba(4, 120, 87, 0.25)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          marginBottom: "6px",
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            letterSpacing: "1.2px",
+            textTransform: "uppercase",
+            color: "#a7f3d0",
+            fontWeight: 700,
+          }}
+        >
+          Total Projected Savings
+        </h3>
+        <span
+          style={{
+            fontSize: "10px",
+            background: "rgba(255,255,255,0.15)",
+            color: "#ecfdf5",
+            padding: "3px 8px",
+            borderRadius: "999px",
+            fontWeight: 600,
+            letterSpacing: "0.5px",
+          }}
+        >
+          $ / year
+        </span>
+      </div>
+
+      <div
+        style={{
+          fontSize: totalIsMissing ? "20px" : "34px",
+          fontWeight: 900,
+          lineHeight: 1.1,
+          marginBottom: "10px",
+          fontStyle: totalIsMissing ? "italic" : "normal",
+          color: totalIsMissing ? "#d1fae5" : "white",
+        }}
+      >
+        {fmtDollars(totals.total)}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "10px",
+          marginBottom: "12px",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(255,255,255,0.12)",
+            padding: "10px 12px",
+            borderRadius: "10px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "10px",
+              color: "#a7f3d0",
+              fontWeight: 700,
+              letterSpacing: "0.6px",
+              textTransform: "uppercase",
+            }}
+          >
+            Tenant
+          </div>
+          <div style={{ fontSize: "16px", fontWeight: 800 }}>
+            {fmtDollars(totals.tenant)}
+          </div>
+        </div>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.12)",
+            padding: "10px 12px",
+            borderRadius: "10px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "10px",
+              color: "#a7f3d0",
+              fontWeight: 700,
+              letterSpacing: "0.6px",
+              textTransform: "uppercase",
+            }}
+          >
+            Owner
+          </div>
+          <div style={{ fontSize: "16px", fontWeight: 800 }}>
+            {fmtDollars(totals.owner)}
+          </div>
+        </div>
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          fontSize: "11px",
+          color: "#d1fae5",
+          lineHeight: 1.55,
+        }}
+      >
+        Estimated dollar savings per year, summed across{" "}
+        <strong>
+          {list.length} measure{list.length === 1 ? "" : "s"}
+        </strong>{" "}
+        recorded for this intersection. Values come from the{" "}
+        <strong>“Total Projected Savings”</strong>,{" "}
+        <strong>“Tenant Projected Savings ($)”</strong>, and{" "}
+        <strong>“Owner Projected Savings ($)”</strong> columns in the source
+        workbook
+        {sheetList.length > 0 ? (
+          <>
+            {" "}— specifically the{" "}
+            <strong>
+              {sheetList.map((s, i) => (
+                <span key={s}>
+                  “{s}”{i < sheetList.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </strong>{" "}
+            sheet{sheetList.length === 1 ? "" : "s"}.
+          </>
+        ) : (
+          <>.</>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Summary card that adds up CO₂, kWh, VMT, and dollar savings across every
+ * measure listed for the selected intersection (not just the first one shown
+ * above the chart). All values come directly from the source Excel workbook;
+ * if a column is blank or zero in the spreadsheet, the field shows
+ * "Data not available" instead of a misleading 0.
  */
 function SidebarTotalSavings({ infos }) {
   const list = Array.isArray(infos) ? infos : [];
@@ -753,14 +944,19 @@ function SidebarTotalSavings({ infos }) {
       const co2 = Number(info?.co2);
       const kwh = Number(info?.kWh);
       const vmt = Number(info?.VMT);
+      const dollars = Number(info?.totalDollars);
       if (Number.isFinite(co2)) acc.co2 += co2;
       if (Number.isFinite(kwh)) acc.kwh += kwh;
       if (Number.isFinite(vmt)) acc.vmt += vmt;
+      if (Number.isFinite(dollars)) acc.dollars += dollars;
+      const sheet = info?.sourceSheet;
+      if (sheet) acc.sheets.add(sheet);
       return acc;
     },
-    { co2: 0, kwh: 0, vmt: 0 },
+    { co2: 0, kwh: 0, vmt: 0, dollars: 0, sheets: new Set() },
   );
 
+  const sheetList = Array.from(totals.sheets);
   const measureCount = list.length;
   const fmt = (n) => Math.round(n).toLocaleString();
   const renderValue = (n, unit, color) => {
@@ -798,20 +994,36 @@ function SidebarTotalSavings({ infos }) {
           color: "#111827",
         }}
       >
-        Total Projected Savings
+        Combined Totals For This Intersection
       </h4>
       <p
         style={{
           margin: "0 0 14px 0",
           fontSize: "12px",
           color: "#6b7280",
+          lineHeight: 1.55,
         }}
       >
-        Combined across{" "}
+        Sum of all{" "}
         <strong>
           {measureCount} measure{measureCount === 1 ? "" : "s"}
         </strong>{" "}
-        listed at this intersection.
+        recorded at this intersection
+        {sheetList.length > 0 ? (
+          <>
+            {" "}in the{" "}
+            <strong>
+              {sheetList.map((s, i) => (
+                <span key={s}>
+                  “{s}”{i < sheetList.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </strong>{" "}
+            sheet{sheetList.length === 1 ? "" : "s"}
+          </>
+        ) : null}
+        . The figures shown <em>above</em> in Sustainability Metrics are only
+        the first measure’s row — these are the full per-intersection totals.
       </p>
 
       <div
@@ -821,6 +1033,39 @@ function SidebarTotalSavings({ infos }) {
           gap: "10px",
         }}
       >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 12px",
+            background: "white",
+            borderRadius: "10px",
+            border: "1px solid #d1fae5",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "#047857", fontWeight: 600 }}>
+            Dollar savings / year
+          </span>
+          {(() => {
+            const isMissing =
+              !Number.isFinite(totals.dollars) || totals.dollars <= 0;
+            return (
+              <div
+                style={{
+                  fontSize: isMissing ? "14px" : "18px",
+                  fontWeight: 800,
+                  color: "#047857",
+                  fontStyle: isMissing ? "italic" : "normal",
+                }}
+              >
+                {isMissing
+                  ? "Data not available"
+                  : `$${Math.round(totals.dollars).toLocaleString()}`}
+              </div>
+            );
+          })()}
+        </div>
         <div
           style={{
             display: "flex",
@@ -879,9 +1124,21 @@ function SidebarTotalSavings({ infos }) {
           margin: "12px 0 0 0",
         }}
       >
-        * Totals are the sum of every measure row in the source spreadsheet for
-        this intersection. Values of <em>0</em> or missing entries show as “Data
-        not available.”
+        * Totals are summed directly from the{" "}
+        <strong>“Total Projected Savings”</strong>,{" "}
+        <strong>“Yearly CO2 Emissions Savings (kg)”</strong>,{" "}
+        <strong>“kWh Projected Savings”</strong>, and{" "}
+        <strong>“Projected VMT Avoided”</strong> columns in the source workbook
+        {sheetList.length > 0 ? (
+          <>
+            {" "}({sheetList.join(", ")} sheet
+            {sheetList.length === 1 ? "" : "s"})
+          </>
+        ) : null}
+        . If the spreadsheet lists <em>0</em> or leaves a cell blank, that field
+        shows as <strong>“Data not available”</strong> instead of a misleading
+        zero — the data exists in the workbook, but no value was recorded for
+        that specific metric.
       </p>
     </div>
   );
@@ -1497,16 +1754,45 @@ export default function SustainabilityDashboard() {
               {selectedLocation.story}
             </p>
 
+            <SidebarTotalDollarSavings infos={selectedLocation.infos || []} />
+
             <h3
               style={{
                 fontSize: "16px",
                 color: "#374151",
-                marginBottom: "20px",
+                marginBottom: "4px",
                 fontWeight: "700",
               }}
             >
               Sustainability Metrics
             </h3>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#6b7280",
+                lineHeight: 1.5,
+                margin: "0 0 16px 0",
+              }}
+            >
+              Showing the <strong>first measure</strong> recorded for this
+              intersection
+              {selectedLocation.infos?.[0]?.sourceSheet ? (
+                <>
+                  {" "}from the{" "}
+                  <strong>
+                    “{selectedLocation.infos[0].sourceSheet}”
+                  </strong>{" "}
+                  sheet
+                </>
+              ) : null}
+              . If a value reads <em>“Data not available,”</em> it means the
+              spreadsheet has a 0 or blank cell in that column for this row —{" "}
+              <strong>
+                the data does exist in the workbook, just not for that specific
+                metric.
+              </strong>{" "}
+              See the totals below for the full per-intersection numbers.
+            </p>
 
             <div
               style={{ display: "flex", flexDirection: "column", gap: "15px" }}
