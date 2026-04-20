@@ -1,0 +1,170 @@
+{
+  "3rd Ave. / Bram St.": {
+    "lat": 43.0592951,
+    "lng": -89.38697585
+  },
+  "Aberg Ave / Crowley Ave": {
+    "lat": 43.114472,
+    "lng": -89.36206634999999
+  },
+  "Albert Ct. / Prairie Ave.": {
+    "lat": 43.0922959,
+    "lng": -89.3531614
+  },
+  "Algoma St. / Hoard St.": {
+    "lat": 43.0913362,
+    "lng": -89.37364550000001
+  },
+  "Allied Dr. / Crescent Rd.": {
+    "lat": 43.0316094,
+    "lng": -89.4589802
+  },
+  "Balsam Rd. / Leland Dr.": {
+    "lat": 43.0298868,
+    "lng": -89.4798167
+  },
+  "Burr Oak Ln. / S. Park St.": {
+    "lat": 43.0695924,
+    "lng": -89.401305
+  },
+  "Camden Rd. / Ruth St.": {
+    "lat": 43.0700426,
+    "lng": -89.3143867
+  },
+  "Carver St. / Frazer Pl.": {
+    "lat": 43.0608232,
+    "lng": -89.3991879
+  },
+  "Danbury St. / Lumley Rd.": {
+    "lat": 43.031835,
+    "lng": -89.446706
+  },
+  "E Johnson St. / N 6th St.": {
+    "lat": 43.087604,
+    "lng": -89.37839615
+  },
+  "E. Johnson St. / N. 6th St.": {
+    "lat": 43.087604,
+    "lng": -89.37839615
+  },
+  "Fairfield Pl. / Kedzie St.": {
+    "lat": 43.1039891,
+    "lng": -89.3566888
+  },
+  "Fairmont Ave. / Burke Ave.": {
+    "lat": 43.105552450000005,
+    "lng": -89.33714789999999
+  },
+  "Helene Pkwy / Britta Dr.": {
+    "lat": 43.0650888,
+    "lng": -89.3888767
+  },
+  "Hoard St. / N. Oak St.": {
+    "lat": 43.06077205,
+    "lng": -89.39848885
+  },
+  "Huxley St. / Schlimgen Ave": {
+    "lat": 43.1131194,
+    "lng": -89.3624134
+  },
+  "Leland Dr. / Balsam Rd.": {
+    "lat": 43.0298868,
+    "lng": -89.4798167
+  },
+  "Manona Dr. / Buckeye Rd.": {
+    "lat": 43.0717492,
+    "lng": -89.3807983
+  },
+  "Mayfair Ave. / Lexington Ave.": {
+    "lat": 43.1097236,
+    "lng": -89.3287773
+  },
+  "Monterey Dr. / Trailsway": {
+    "lat": 43.1246898,
+    "lng": -89.36720575000001
+  },
+  "Moorland Rd. / Warner St.": {
+    "lat": 43.1024916,
+    "lng": -89.3652958
+  },
+  "N Oak St. / Hoard St.": {
+    "lat": 43.06077205,
+    "lng": -89.39848885
+  },
+  "N. Butler St. / E. Johnson St.": {
+    "lat": 43.07600615,
+    "lng": -89.39196515
+  },
+  "N. Butler St. / N. Hamilton St.": {
+    "lat": 43.07831165,
+    "lng": -89.3845493
+  },
+  "Northport Dr. / Northridge Terrace": {
+    "lat": 43.139472049999995,
+    "lng": -89.3887109
+  },
+  "Powers Ave / Wells Ave": {
+    "lat": 43.10500395,
+    "lng": -89.33269215
+  },
+  "Rethke Ave / Worthington Ave": {
+    "lat": 43.1072142,
+    "lng": -89.3374495
+  },
+  "Rogers St. / Jenifer St.": {
+    "lat": 43.082183400000005,
+    "lng": -89.366049
+  },
+  "S. Brearly St. / Jenifer St.": {
+    "lat": 43.0818058,
+    "lng": -89.37437655
+  },
+  "Sinykin Cir. / Stein Ave": {
+    "lat": 43.0890668,
+    "lng": -89.36819285
+  },
+  "Tempe Dr. / Muir Field Rd.": {
+    "lat": 43.0563934,
+    "lng": -89.4287065
+  },
+  "University Ave. / Chamberlain Ave.": {
+    "lat": 43.07345635,
+    "lng": -89.40141754999999
+  },
+  "University Ave. / N. Midvale Blvd.": {
+    "lat": 43.07406505,
+    "lng": -89.42381345
+  },
+  "Wyldewood Dr. / Brentwood Pkwy": {
+    "lat": 43.1225393,
+    "lng": -89.3673988
+  },
+  "Wyldewood Dr. / Monterey Drive": {
+    "lat": 43.122887750000004,
+    "lng": -89.3679392
+  },
+  "Balsam Rd. / Thrush Ln": {
+    "lat": 43.0289519,
+    "lng": -89.480024
+  },
+  "Balsam Rd. / Thrush Ln.": {
+    "lat": 43.0289519,
+    "lng": -89.480024
+  },
+  "Fish Hatchery Rd. / Petra Pl.": {
+    "lat": 43.0368363,
+    "lng": -89.4036011
+  },
+  "Hanover St / Troy Dr.": {
+    "lat": 43.13525525,
+    "lng": -89.38122874999999
+  },
+  "Hayes Rd. / Willage Green Lane E": {
+    "lat": 43.0792875,
+    "lng": -89.5077656
+  },
+  "W. Fieldler Ln. / W Badger Rd.": {
+    "lat": 43.0386485,
+    "lng": -89.4018807
+  }
+}
