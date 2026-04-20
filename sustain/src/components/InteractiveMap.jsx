@@ -4,7 +4,6 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Circle,
   CircleMarker,
   Polyline,
   ZoomControl,
@@ -17,6 +16,7 @@ import {
   geocodeCrossStreetIntersection,
   geocodeFreeformAddress,
   distanceMeters,
+  isInMadisonBbox,
   sleep,
 } from "@/lib/madisonGeocode.js";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -56,7 +56,9 @@ const EXCEL_URL_CANDIDATES = [
 
 const COORD_JSON_URL = "/data/cross_street_coords.json";
 
-const GEOCODE_CACHE_KEY = "sustain-dane-intersection-geocode-v2";
+// Bumped to v3 after switching the geocoder from "photon per-arm average" to
+// "OSM Overpass true intersection node". Any v2 entries were approximate.
+const GEOCODE_CACHE_KEY = "sustain-dane-intersection-geocode-v3";
 
 function readGeoCache() {
   try {
@@ -260,7 +262,12 @@ function normalizeCoordinate(raw) {
   const lat = Number(raw.lat ?? raw.latitude);
   const lng = Number(raw.lng ?? raw.lon ?? raw.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat, lng };
+  const p = { lat, lng };
+  // Drop coordinates that fell outside the Madison metro area. This guards
+  // against bad entries in older caches or rare geocoder mistakes from
+  // bleeding into the map.
+  if (!isInMadisonBbox(p)) return null;
+  return p;
 }
 
 function getCoordForStreet(lookup, original) {
@@ -1232,7 +1239,6 @@ function createIntersectionIcon(isActive, zoom = MARKER_REFERENCE_ZOOM) {
 
 export default function SustainabilityDashboard() {
   const [hoveredId, setHoveredId] = useState(null);
-  const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // new automatic data state
@@ -1617,55 +1623,6 @@ export default function SustainabilityDashboard() {
           </p>
         )}
       </form>
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: "30px",
-          right: "30px",
-          zIndex: 1000,
-          background: "white",
-          padding: "12px 20px",
-          borderRadius: "50px",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-          display: "flex",
-          alignItems: "center",
-          gap: "15px",
-          fontFamily: "sans-serif",
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <span style={{ fontSize: "14px", color: "#374151", fontWeight: "600" }}>
-          Enable Heatmap
-        </span>
-        <button
-          onClick={() => setShowHeatmap(!showHeatmap)}
-          style={{
-            width: "44px",
-            height: "24px",
-            borderRadius: "50px",
-            background: showHeatmap ? "#16a34a" : "#d1d5db",
-            border: "none",
-            cursor: "pointer",
-            position: "relative",
-            transition: "background 0.3s ease",
-          }}
-        >
-          <div
-            style={{
-              width: "18px",
-              height: "18px",
-              background: "white",
-              borderRadius: "50%",
-              position: "absolute",
-              top: "3px",
-              left: showHeatmap ? "23px" : "3px",
-              transition: "left 0.3s ease",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            }}
-          />
-        </button>
-      </div>
 
       <div
         style={{
@@ -2100,24 +2057,8 @@ export default function SustainabilityDashboard() {
             hoveredId === item.id ||
             (selectedLocation && selectedLocation.id === item.id) ||
             (searchNearest && searchNearest.id === item.id);
-          const primaryCo2 = item.infos?.[0]?.co2 ?? 0;
-
           return (
             <React.Fragment key={item.id}>
-              {showHeatmap && (
-                <Circle
-                  center={[item.coordinate.lat, item.coordinate.lng]}
-                  radius={Math.max(8, primaryCo2 * 0.5)}
-                  pathOptions={{
-                    fillColor: "#22c55e",
-                    fillOpacity: isActive ? 0.35 : 0.15,
-                    color: "#16a34a",
-                    weight: 1,
-                    stroke: true,
-                  }}
-                />
-              )}
-
               <Marker
                 position={[item.coordinate.lat, item.coordinate.lng]}
                 icon={createIntersectionIcon(isActive, mapZoom)}
