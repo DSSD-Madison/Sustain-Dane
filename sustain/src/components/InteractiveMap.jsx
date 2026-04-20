@@ -497,7 +497,7 @@ function SidebarCo2Explainer({ kgAnnual }) {
             fontStyle: "italic",
           }}
         >
-          No CO₂ savings are listed for this row in the spreadsheet.
+          Data not available for this intersection’s CO₂ savings.
         </p>
       ) : (
         <p
@@ -604,7 +604,7 @@ function SidebarKwhExplainer({ kwhAnnual }) {
             fontStyle: "italic",
           }}
         >
-          No electricity savings are listed for this row in the spreadsheet.
+          Data not available for this intersection’s electricity savings.
         </p>
       ) : dryerHoursAt1kW < 3 ? (
         <p
@@ -656,6 +656,232 @@ function SidebarKwhExplainer({ kwhAnnual }) {
       >
         * These are all estimates. For decisions or more accurate reporting,
         contact Sustain Dane.
+      </p>
+    </div>
+  );
+}
+
+/** ~average car trip length, used only to humanize VMT figures. */
+const MILES_PER_AVG_CAR_TRIP = 9;
+
+/** Plain-language VMT (vehicle miles traveled) context. */
+function SidebarVmtExplainer({ milesAnnual }) {
+  const raw = Number(milesAnnual);
+  const miles = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+  const tripsAvoided = miles > 0 ? miles / MILES_PER_AVG_CAR_TRIP : 0;
+  const co2FromMiles = miles > 0 ? miles * KG_CO2_PER_CAR_MILE : 0;
+
+  return (
+    <div
+      style={{
+        marginTop: "12px",
+        padding: "14px 16px",
+        background: "#fffbeb",
+        borderRadius: "12px",
+        border: "1px solid #fde68a",
+      }}
+    >
+      <p
+        style={{
+          fontSize: "13px",
+          color: "#78350f",
+          lineHeight: 1.65,
+          margin: "0 0 10px 0",
+        }}
+      >
+        <strong style={{ color: "#7c2d12" }}>What this number means:</strong>{" "}
+        <strong>VMT</strong> stands for{" "}
+        <strong>vehicle miles traveled</strong>—the total miles cars and trucks
+        drive. The figure above is an <strong>estimated yearly amount</strong>{" "}
+        of driving that this work helps <strong>avoid</strong> (for example,
+        through better walking, biking, transit, or trip-reduction options).
+      </p>
+      {miles <= 0 ? (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#92400e",
+            lineHeight: 1.65,
+            margin: 0,
+            fontStyle: "italic",
+          }}
+        >
+          Data not available for this intersection’s avoided vehicle miles.
+        </p>
+      ) : (
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#78350f",
+            lineHeight: 1.65,
+            margin: 0,
+          }}
+        >
+          <strong style={{ color: "#7c2d12" }}>In everyday terms:</strong>{" "}
+          Avoiding <strong>{Math.round(miles).toLocaleString()} miles</strong>{" "}
+          of driving per year is roughly the same as skipping about{" "}
+          <strong>{Math.round(tripsAvoided).toLocaleString()}</strong> typical
+          car trips (using ~{MILES_PER_AVG_CAR_TRIP} miles per trip as a rough
+          average). That also keeps an estimated{" "}
+          <strong>{Math.round(co2FromMiles).toLocaleString()} kg of CO₂</strong>{" "}
+          out of the air from tailpipes alone.
+        </p>
+      )}
+      <p
+        style={{
+          fontSize: "11px",
+          color: "#a16207",
+          lineHeight: 1.5,
+          margin: "12px 0 0 0",
+        }}
+      >
+        * These are all estimates. For decisions or more accurate reporting,
+        contact Sustain Dane.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Summary card that adds up CO₂, kWh, and VMT across every measure listed for
+ * the selected intersection (not just the first one shown above).
+ */
+function SidebarTotalSavings({ infos }) {
+  const list = Array.isArray(infos) ? infos : [];
+  const totals = list.reduce(
+    (acc, info) => {
+      const co2 = Number(info?.co2);
+      const kwh = Number(info?.kWh);
+      const vmt = Number(info?.VMT);
+      if (Number.isFinite(co2)) acc.co2 += co2;
+      if (Number.isFinite(kwh)) acc.kwh += kwh;
+      if (Number.isFinite(vmt)) acc.vmt += vmt;
+      return acc;
+    },
+    { co2: 0, kwh: 0, vmt: 0 },
+  );
+
+  const measureCount = list.length;
+  const fmt = (n) => Math.round(n).toLocaleString();
+  const renderValue = (n, unit, color) => {
+    const isMissing = !Number.isFinite(n) || n <= 0;
+    return (
+      <div
+        style={{
+          fontSize: isMissing ? "14px" : "18px",
+          fontWeight: "800",
+          color,
+          fontStyle: isMissing ? "italic" : "normal",
+        }}
+      >
+        {isMissing ? "Data not available" : `${fmt(n)} ${unit}`}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: "12px",
+        padding: "16px",
+        background:
+          "linear-gradient(135deg, #ecfdf5 0%, #eff6ff 50%, #fff7ed 100%)",
+        borderRadius: "15px",
+        border: "1px solid #e5e7eb",
+      }}
+    >
+      <h4
+        style={{
+          margin: "0 0 4px 0",
+          fontSize: "15px",
+          fontWeight: "800",
+          color: "#111827",
+        }}
+      >
+        Total Projected Savings
+      </h4>
+      <p
+        style={{
+          margin: "0 0 14px 0",
+          fontSize: "12px",
+          color: "#6b7280",
+        }}
+      >
+        Combined across{" "}
+        <strong>
+          {measureCount} measure{measureCount === 1 ? "" : "s"}
+        </strong>{" "}
+        listed at this intersection.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: "10px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 12px",
+            background: "white",
+            borderRadius: "10px",
+            border: "1px solid #dcfce7",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "#15803d", fontWeight: 600 }}>
+            CO₂ avoided / year
+          </span>
+          {renderValue(totals.co2, "kg", "#16a34a")}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 12px",
+            background: "white",
+            borderRadius: "10px",
+            border: "1px solid #dbeafe",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "#1d4ed8", fontWeight: 600 }}>
+            Electricity saved / year
+          </span>
+          {renderValue(totals.kwh, "kWh", "#2563eb")}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 12px",
+            background: "white",
+            borderRadius: "10px",
+            border: "1px solid #ffedd5",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "#c2410c", fontWeight: 600 }}>
+            Vehicle miles avoided / year
+          </span>
+          {renderValue(totals.vmt, "miles", "#c2410c")}
+        </div>
+      </div>
+
+      <p
+        style={{
+          fontSize: "11px",
+          color: "#6b7280",
+          lineHeight: 1.5,
+          margin: "12px 0 0 0",
+        }}
+      >
+        * Totals are the sum of every measure row in the source spreadsheet for
+        this intersection. Values of <em>0</em> or missing entries show as “Data
+        not available.”
       </p>
     </div>
   );
@@ -1311,24 +1537,33 @@ export default function SustainabilityDashboard() {
                     color="#16a34a"
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: "22px",
-                        fontWeight: "800",
-                        color: "#16a34a",
-                      }}
-                    >
-                      {selectedLocation.infos[0]?.co2 ?? 0} kg
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#16a34a",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Carbon dioxide avoided (estimated per year)
-                    </div>
+                    {(() => {
+                      const v = Number(selectedLocation.infos[0]?.co2);
+                      const isMissing = !Number.isFinite(v) || v <= 0;
+                      return (
+                        <>
+                          <div
+                            style={{
+                              fontSize: isMissing ? "16px" : "22px",
+                              fontWeight: "800",
+                              color: "#16a34a",
+                              fontStyle: isMissing ? "italic" : "normal",
+                            }}
+                          >
+                            {isMissing ? "Data not available" : `${v} kg`}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#16a34a",
+                              fontWeight: "600",
+                            }}
+                          >
+                            Carbon dioxide avoided (estimated per year)
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1363,24 +1598,33 @@ export default function SustainabilityDashboard() {
                     color="#2563eb"
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: "22px",
-                        fontWeight: "800",
-                        color: "#2563eb",
-                      }}
-                    >
-                      {selectedLocation.infos[0]?.kWh ?? 0} kWh
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#2563eb",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Electricity saved (estimated per year)
-                    </div>
+                    {(() => {
+                      const v = Number(selectedLocation.infos[0]?.kWh);
+                      const isMissing = !Number.isFinite(v) || v <= 0;
+                      return (
+                        <>
+                          <div
+                            style={{
+                              fontSize: isMissing ? "16px" : "22px",
+                              fontWeight: "800",
+                              color: "#2563eb",
+                              fontStyle: isMissing ? "italic" : "normal",
+                            }}
+                          >
+                            {isMissing ? "Data not available" : `${v} kWh`}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#2563eb",
+                              fontWeight: "600",
+                            }}
+                          >
+                            Electricity saved (estimated per year)
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1388,6 +1632,96 @@ export default function SustainabilityDashboard() {
               <SidebarKwhExplainer
                 kwhAnnual={selectedLocation.infos[0]?.kWh ?? 0}
               />
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "15px",
+                  background: "#fff7ed",
+                  borderRadius: "15px",
+                  border: "1px solid #ffedd5",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    minWidth: 0,
+                    overflow: "visible",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      flexShrink: 0,
+                      borderRadius: "50%",
+                      background: "#fed7aa",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#c2410c",
+                    }}
+                    aria-hidden="true"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2" />
+                      <circle cx="6.5" cy="16.5" r="2.5" />
+                      <circle cx="16.5" cy="16.5" r="2.5" />
+                    </svg>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {(() => {
+                      const v = Number(selectedLocation.infos[0]?.VMT);
+                      const isMissing = !Number.isFinite(v) || v <= 0;
+                      return (
+                        <>
+                          <div
+                            style={{
+                              fontSize: isMissing ? "16px" : "22px",
+                              fontWeight: "800",
+                              color: "#c2410c",
+                              fontStyle: isMissing ? "italic" : "normal",
+                            }}
+                          >
+                            {isMissing
+                              ? "Data not available"
+                              : `${v.toLocaleString()} miles`}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#c2410c",
+                              fontWeight: "600",
+                            }}
+                          >
+                            Vehicle miles avoided (projected per year)
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              <SidebarVmtExplainer
+                milesAnnual={selectedLocation.infos[0]?.VMT ?? 0}
+              />
+
+              <SidebarTotalSavings infos={selectedLocation.infos || []} />
             </div>
           </>
         )}
