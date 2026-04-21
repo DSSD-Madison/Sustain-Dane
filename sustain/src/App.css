@@ -49,3 +49,66 @@ body {
 .read-the-docs {
   color: #888;
 }
+
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--card) 92%, transparent);
+  border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+  color: var(--foreground);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.theme-toggle__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+  user-select: none;
+}
+
+.theme-toggle__switch {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+  background: color-mix(in oklch, var(--muted) 92%, transparent);
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.theme-toggle__thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  margin-left: 2px;
+  background: var(--background);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+
+.theme-toggle__switch[aria-checked="true"] {
+  background: color-mix(in oklch, var(--primary) 22%, var(--muted));
+  border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
+}
+
+.theme-toggle__switch[aria-checked="true"] .theme-toggle__thumb {
+  transform: translateX(18px);
+}
+
+/* Leaflet basemap tweak: make dark basemap details (buildings) pop. */
+.leaflet-map--dark .leaflet-tile {
+  filter: brightness(1.38) contrast(1.18) saturate(1.05);
+}

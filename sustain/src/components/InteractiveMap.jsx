@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import {
   MapContainer,
-  TileLayer,
   Marker,
   CircleMarker,
   Polyline,
@@ -91,6 +90,56 @@ const MARKER_REFERENCE_ZOOM = 14;
 function markerScaleForZoom(zoom) {
   const delta = zoom - MARKER_REFERENCE_ZOOM;
   return Math.min(1.9, Math.max(0.38, Math.pow(1.35, delta)));
+}
+
+function ThemedBaseLayer({ isDark }) {
+  const map = useMap();
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (layerRef.current) {
+      try {
+        map.removeLayer(layerRef.current);
+      } catch {
+        // ignore
+      }
+      layerRef.current = null;
+    }
+
+    const paneName = "basemap";
+    let pane = map.getPane(paneName);
+    if (!pane) {
+      pane = map.createPane(paneName);
+      pane.style.zIndex = "200";
+    }
+    if (pane) pane.innerHTML = "";
+
+    const url = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+    const layer = L.tileLayer(url, {
+      attribution: "&copy; OpenStreetMap",
+      pane: paneName,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 2,
+    });
+
+    layer.addTo(map);
+    layerRef.current = layer;
+    layer.redraw();
+    return () => {
+      try {
+        map.removeLayer(layer);
+      } catch {
+        // ignore
+      }
+      if (layerRef.current === layer) layerRef.current = null;
+    };
+  }, [map, isDark]);
+
+  return null;
 }
 
 function FitMapToData({ points, geolocationSettled, browserGeo }) {
@@ -1237,7 +1286,7 @@ function createIntersectionIcon(isActive, zoom = MARKER_REFERENCE_ZOOM) {
   });
 }
 
-export default function SustainabilityDashboard() {
+export default function SustainabilityDashboard({ isDark = false }) {
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
@@ -1450,7 +1499,7 @@ export default function SustainabilityDashboard() {
         minHeight: "100dvh",
         position: "relative",
         overflow: "hidden",
-        backgroundColor: "#f3f4f6",
+        backgroundColor: "var(--background)",
       }}
     >
       {mapLoading && (
@@ -1463,12 +1512,12 @@ export default function SustainabilityDashboard() {
             zIndex: 1250,
             maxWidth: "min(420px, 92vw)",
             padding: "12px 20px",
-            background: "white",
-            border: "1px solid #e5e7eb",
+            background: "var(--card)",
+            border: "1px solid var(--border)",
             borderRadius: "12px",
             fontFamily: "sans-serif",
             fontSize: "14px",
-            color: "#374151",
+            color: "var(--foreground)",
             boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
           }}
         >
@@ -1507,9 +1556,9 @@ export default function SustainabilityDashboard() {
           left: "16px",
           zIndex: 1000,
           width: "min(340px, calc(100vw - 32px))",
-          background: "white",
+          background: "var(--card)",
           borderRadius: "14px",
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border)",
           boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
           padding: "14px 14px 12px",
           fontFamily: "sans-serif",
@@ -1519,7 +1568,7 @@ export default function SustainabilityDashboard() {
           style={{
             fontSize: "13px",
             fontWeight: "700",
-            color: "#111827",
+            color: "var(--foreground)",
             marginBottom: "8px",
           }}
         >
@@ -1528,7 +1577,7 @@ export default function SustainabilityDashboard() {
         <div
           style={{
             fontSize: "11px",
-            color: "#6b7280",
+            color: "color-mix(in oklch, var(--foreground) 65%, transparent)",
             marginBottom: "10px",
             lineHeight: 1.4,
           }}
@@ -1547,7 +1596,9 @@ export default function SustainabilityDashboard() {
             boxSizing: "border-box",
             padding: "10px 12px",
             borderRadius: "10px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--border)",
+            background: "var(--background)",
+            color: "var(--foreground)",
             fontSize: "14px",
             marginBottom: "10px",
             outline: "none",
@@ -1584,9 +1635,9 @@ export default function SustainabilityDashboard() {
               style={{
                 padding: "10px 12px",
                 borderRadius: "10px",
-                border: "1px solid #e5e7eb",
-                background: "#f9fafb",
-                color: "#374151",
+                border: "1px solid var(--border)",
+                background: "var(--background)",
+                color: "var(--foreground)",
                 fontSize: "13px",
                 fontWeight: "600",
                 cursor: "pointer",
@@ -1631,7 +1682,7 @@ export default function SustainabilityDashboard() {
           right: selectedLocation ? 0 : "-420px",
           width: "380px",
           height: "100%",
-          background: "white",
+          background: "var(--card)",
           zIndex: 1100,
           boxShadow: "-10px 0 40px rgba(0,0,0,0.1)",
           transition: "right 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -1639,7 +1690,7 @@ export default function SustainabilityDashboard() {
           display: "flex",
           flexDirection: "column",
           fontFamily: "sans-serif",
-          borderLeft: "1px solid #f3f4f6",
+          borderLeft: "1px solid var(--border)",
           overflowY: "auto",
         }}
       >
@@ -1974,12 +2025,10 @@ export default function SustainabilityDashboard() {
         center={[43.0745, -89.417]}
         zoom={14}
         style={{ height: "100%", width: "100%" }}
+        className={isDark ? "leaflet-map--dark" : "leaflet-map--light"}
         zoomControl={false}
       >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          attribution="&copy; OpenStreetMap"
-        />
+        <ThemedBaseLayer isDark={isDark} />
         <ZoomControl position="bottomleft" />
         <MapClickCloseSidebar
           hasSelection={!!selectedLocation}
