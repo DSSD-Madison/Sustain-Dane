@@ -154,17 +154,60 @@ async function overpassQuery(ql, { retries = 2 } = {}) {
 
 /** Strip direction prefix + common suffix so "N. Crowley Ave" → "Crowley". */
 function streetCoreForRegex(arm) {
-    let s = fixStreetTypos(arm);
-    s = s.replace(/^(North|South|East|West)\s+/i, "");
-    s = s.replace(
-        /\s+(Avenue|Street|Road|Drive|Lane|Place|Parkway|Circle|Boulevard|Court|Way|Trail|Terrace|Highway)\.?$/i,
-        "",
-    );
-    return s.trim();
+    return fixStreetTypos(arm).trim();
 }
 
 function escapeRegex(s) {
     return String(s).replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
+function parseStreetNameParts(arm) {
+    const fixed = fixStreetTypos(arm).trim();
+
+    const dirMatch = fixed.match(/^(North|South|East|West)\s+/i);
+    const direction = dirMatch ? dirMatch[1] : null;
+    const withoutDir = direction
+        ? fixed.replace(/^(North|South|East|West)\s+/i, "").trim()
+        : fixed;
+
+    const suffixMatch = withoutDir.match(
+        /\b(Avenue|Ave|Street|St|Road|Rd|Drive|Dr|Lane|Ln|Place|Pl|Parkway|Pkwy|Circle|Cir|Boulevard|Blvd|Court|Ct|Way|Trail|Tr|Terrace|Ter|Highway|Hwy)\.?$/i,
+    );
+
+    const suffix = suffixMatch ? suffixMatch[1] : null;
+    const base = suffix
+        ? withoutDir
+              .replace(
+                  /\b(Avenue|Ave|Street|St|Road|Rd|Drive|Dr|Lane|Ln|Place|Pl|Parkway|Pkwy|Circle|Cir|Boulevard|Blvd|Court|Ct|Way|Trail|Tr|Terrace|Ter|Highway|Hwy)\.?$/i,
+                  "",
+              )
+              .trim()
+        : withoutDir;
+
+    return { fixed, direction, base, suffix };
+}
+
+// regex helpers
+function suffixRegexPart(suffix) {
+    if (!suffix) return "";
+
+    const s = suffix.toLowerCase();
+    if (s === "avenue" || s === "ave") return "(?:Avenue|Ave)\\.?";
+    if (s === "street" || s === "st") return "(?:Street|St)\\.?";
+    if (s === "road" || s === "rd") return "(?:Road|Rd)\\.?";
+    if (s === "drive" || s === "dr") return "(?:Drive|Dr)\\.?";
+    if (s === "lane" || s === "ln") return "(?:Lane|Ln)\\.?";
+    if (s === "place" || s === "pl") return "(?:Place|Pl)\\.?";
+    if (s === "parkway" || s === "pkwy") return "(?:Parkway|Pkwy)\\.?";
+    if (s === "circle" || s === "cir") return "(?:Circle|Cir)\\.?";
+    if (s === "boulevard" || s === "blvd") return "(?:Boulevard|Blvd)\\.?";
+    if (s === "court" || s === "ct") return "(?:Court|Ct)\\.?";
+    if (s === "trail" || s === "tr") return "(?:Trail|Tr)\\.?";
+    if (s === "terrace" || s === "ter") return "(?:Terrace|Ter)\\.?";
+    if (s === "highway" || s === "hwy") return "(?:Highway|Hwy)\\.?";
+    if (s === "way") return "Way\\.?";
+
+    return escapeRegex(suffix) + "\\.?";
 }
 
 /**
@@ -173,21 +216,25 @@ function escapeRegex(s) {
  * common suffix, plus abbreviations.
  */
 function osmNameRegex(arm) {
-    const fixed = fixStreetTypos(arm);
-    const core = streetCoreForRegex(fixed);
-    if (!core) return null;
+    const { direction, base, suffix } = parseStreetNameParts(arm);
+    if (!base) return null;
 
-    const dirMatch = fixed.match(/^(North|South|East|West)\s+/i);
-    const direction = dirMatch ? dirMatch[1] : null;
-
-    // Direction alternation: allow OSM to spell it "North" or "N" or missing
-    let dirAlt = "(?:(?:N|S|E|W)\\.?\\s+|(?:North|South|East|West)\\s+)?";
+    let dirPart = "";
     if (direction) {
         const initial = direction[0].toUpperCase();
-        dirAlt = `(?:${initial}\\.?\\s+|${direction}\\s+)?`;
+        dirPart = `(?:${initial}\\.?\\s+|${direction}\\s+)`;
+    } else {
+        dirPart = "(?:(?:N|S|E|W)\\.?\\s+|(?:North|South|East|West)\\s+)?";
     }
 
-    return `^${dirAlt}${escapeRegex(core)}(?:\\s+(?:Avenue|Ave|Street|St|Road|Rd|Drive|Dr|Lane|Ln|Place|Pl|Parkway|Pkwy|Circle|Cir|Boulevard|Blvd|Court|Ct|Way|Trail|Tr|Terrace|Ter|Highway|Hwy))?\\.?$`;
+    const basePart = escapeRegex(base).replace(/\s+/g, "\\s+");
+
+    if (suffix) {
+        const suffixPart = suffixRegexPart(suffix);
+        return `^${dirPart}${basePart}\\s+${suffixPart}$`;
+    }
+
+    return `^${dirPart}${basePart}$`;
 }
 
 /** Choose the candidate closest to Madison center (squared-degrees heuristic). */
@@ -316,6 +363,143 @@ export async function overpassClosestApproach(arm1, arm2) {
     return null;
 }
 
+
+// handling points in water (clamps to nearest coast)
+function nearlySameLatLng(a, b, eps = 1e-9) {
+    return Math.abs(a.lat - b.lat) <= eps && Math.abs(a.lng - b.lng) <= eps;
+}
+
+function closeRing(points) {
+    if (!points.length) return points;
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (nearlySameLatLng(first, last)) return points;
+    return [...points, first];
+}
+
+function pointInRing(point, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i].lng, yi = ring[i].lat;
+        const xj = ring[j].lng, yj = ring[j].lat;
+
+        const intersects =
+            yi > point.lat !== yj > point.lat &&
+            point.lng <
+                ((xj - xi) * (point.lat - yi)) / ((yj - yi) || 1e-12) + xi;
+
+        if (intersects) inside = !inside;
+    }
+    return inside;
+}
+
+function nearestPointOnSegment(point, a, b) {
+    const ax = a.lng, ay = a.lat;
+    const bx = b.lng, by = b.lat;
+    const px = point.lng, py = point.lat;
+
+    const abx = bx - ax;
+    const aby = by - ay;
+    const ab2 = abx * abx + aby * aby;
+
+    if (ab2 === 0) return { lat: ay, lng: ax };
+
+    let t = ((px - ax) * abx + (py - ay) * aby) / ab2;
+    t = Math.max(0, Math.min(1, t));
+
+    return {
+        lat: ay + t * aby,
+        lng: ax + t * abx,
+    };
+}
+
+function dist2(a, b) {
+    const dLat = a.lat - b.lat;
+    const dLng = a.lng - b.lng;
+    return dLat * dLat + dLng * dLng;
+}
+
+function nearestPointOnRing(point, ring) {
+    let best = null;
+    let bestD = Infinity;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+        const candidate = nearestPointOnSegment(point, ring[i], ring[i + 1]);
+        const d = dist2(point, candidate);
+        if (d < bestD) {
+            bestD = d;
+            best = candidate;
+        }
+    }
+    return best;
+}
+
+function extractWaterRings(elements) {
+    const rings = [];
+
+    for (const el of elements || []) {
+        if (el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 4) {
+            const pts = el.geometry.map((p) => ({ lat: p.lat, lng: p.lon }));
+            const ring = closeRing(pts);
+            if (ring.length >= 4) rings.push(ring);
+        }
+
+        if (el.type === "relation" && Array.isArray(el.members)) {
+            for (const m of el.members) {
+                if (m.type !== "way" || !Array.isArray(m.geometry) || m.geometry.length < 4) {
+                    continue;
+                }
+                const pts = m.geometry.map((p) => ({ lat: p.lat, lng: p.lon }));
+                const ring = closeRing(pts);
+                if (ring.length >= 4) rings.push(ring);
+            }
+        }
+    }
+
+    return rings;
+}
+
+async function overpassNearbyWaterGeometries(point, radiusMeters = 600) {
+    const ql = `
+      [out:json][timeout:25];
+      (
+        way(around:${radiusMeters},${point.lat},${point.lng})["natural"="water"];
+        relation(around:${radiusMeters},${point.lat},${point.lng})["natural"="water"];
+        way(around:${radiusMeters},${point.lat},${point.lng})["waterway"="riverbank"];
+        relation(around:${radiusMeters},${point.lat},${point.lng})["waterway"="riverbank"];
+      );
+      out geom;
+    `;
+
+    const data = await overpassQuery(ql, { retries: 1 });
+    return extractWaterRings(data?.elements || []);
+}
+
+async function clampPointToNearestShoreIfNeeded(point) {
+    if (!point || !isInMadisonBbox(point)) return point;
+
+    const rings = await overpassNearbyWaterGeometries(point);
+    if (!rings.length) return point;
+
+    let containingRing = null;
+    for (const ring of rings) {
+        if (pointInRing(point, ring)) {
+            containingRing = ring;
+            break;
+        }
+    }
+
+    if (!containingRing) return point;
+
+    const shoreline = nearestPointOnRing(point, containingRing);
+    return shoreline && isInMadisonBbox(shoreline) ? shoreline : point;
+}
+
+async function finalizeIntersectionPoint(point) {
+    if (!point || !isInMadisonBbox(point)) return null;
+    return point;
+}
+
 // =============================================================================
 // Photon (Komoot) — fallback geocoder
 // =============================================================================
@@ -358,15 +542,39 @@ async function photonSearch(query, limit = 12) {
     }
 }
 
+async function photonSearchVariants(queries, limit = 16) {
+    for (const q of queries) {
+        const result = await photonSearch(q, limit);
+        if (result) return result;
+        await sleep(120);
+    }
+    return null;
+}
+
+function buildCombinedIntersectionQueries(arm1, arm2) {
+    return [
+        `${arm1} and ${arm2}, Madison, Wisconsin, USA`,
+        `${arm1} & ${arm2}, Madison, Wisconsin, USA`,
+        `intersection of ${arm1} and ${arm2}, Madison, Wisconsin, USA`,
+        `${arm1}, ${arm2}, Madison, Wisconsin, USA`,
+        `${arm1} ${arm2}, Madison, Wisconsin, USA`,
+    ];
+}
+
+function buildStreetArmQueries(arm) {
+    return [
+        `${arm}, Madison, Wisconsin, USA`,
+        `${arm}, Madison WI`,
+        arm,
+    ];
+}
+
 export async function photonGeocodeStreetArm(arm) {
-    return photonSearch(`${arm}, Madison, Wisconsin, USA`);
+    return photonSearchVariants(buildStreetArmQueries(arm), 12);
 }
 
 export async function photonGeocodeCombinedIntersection(arm1, arm2) {
-    return photonSearch(
-        `${arm1} and ${arm2}, Madison, Wisconsin, USA`,
-        16,
-    );
+    return photonSearchVariants(buildCombinedIntersectionQueries(arm1, arm2), 16);
 }
 
 /**
@@ -394,57 +602,77 @@ export async function geocodeFreeformAddress(address) {
 export async function geocodeCrossStreetIntersection(label) {
     const arms = splitCrossStreetArms(label);
 
-    // --- Single-arm label (no slash): just geocode the one street ---
     if (arms.length === 1) {
         const only = await photonGeocodeStreetArm(arms[0]);
-        if (only && isInMadisonBbox(only)) return only;
-        return null;
+        return await finalizeIntersectionPoint(only);
     }
+
     if (arms.length < 2) {
         const only = await photonGeocodeStreetArm(fixStreetTypos(label));
-        if (only && isInMadisonBbox(only)) return only;
-        return null;
+        return await finalizeIntersectionPoint(only);
     }
 
     const [arm1, arm2] = arms;
 
-    // 1. True intersection via shared OSM node
-    try {
-        const exact = await overpassIntersectionNode(arm1, arm2);
-        if (exact && isInMadisonBbox(exact)) return exact;
-    } catch {
-        // fall through
-    }
-
-    // 2. Closest approach between two OSM ways
-    await sleep(220);
-    try {
-        const near = await overpassClosestApproach(arm1, arm2);
-        if (near && isInMadisonBbox(near)) return near;
-    } catch {
-        // fall through
-    }
-
-    // 3. Photon combined-query "A and B, Madison"
-    await sleep(220);
-    const combined = await photonGeocodeCombinedIntersection(arm1, arm2);
-    if (combined && isInMadisonBbox(combined)) return combined;
-
-    // 4. Last resort: per-arm averaging. Only trusted when both Photon
-    //    responses land close to one another (≤ 600m) — averaging two street
-    //    centroids on opposite sides of the city gives a meaningless midpoint,
-    //    so in that case we'd rather return null and let the caller skip the
-    //    intersection than plot it in the wrong place.
-    await sleep(220);
+    // Always geocode both arms first
     const a = await photonGeocodeStreetArm(arm1);
-    await sleep(220);
+    await sleep(180);
     const b = await photonGeocodeStreetArm(arm2);
-    if (a && b && isInMadisonBbox(a) && isInMadisonBbox(b)) {
+
+    const aOk = a && isInMadisonBbox(a);
+    const bOk = b && isInMadisonBbox(b);
+
+    // Also try a combined intersection-style query
+    await sleep(120);
+    const combined = await photonGeocodeCombinedIntersection(arm1, arm2);
+    const combinedOk = combined && isInMadisonBbox(combined);
+
+    // Best case: both arms resolved
+    if (aOk && bOk) {
         const apart = distanceMeters(a, b);
-        if (apart <= 600) {
-            const mid = { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 };
-            if (isInMadisonBbox(mid)) return mid;
+
+        // Prefer combined query if it is plausibly near BOTH arms
+        if (combinedOk) {
+            const d1 = distanceMeters(combined, a);
+            const d2 = distanceMeters(combined, b);
+            if (d1 <= 700 && d2 <= 700) {
+                return await finalizeIntersectionPoint(combined);
+            }
         }
+
+        // Otherwise use midpoint if the two arm geocodes are reasonably close
+        if (apart <= 1200) {
+            const mid = {
+                lat: (a.lat + b.lat) / 2,
+                lng: (a.lng + b.lng) / 2,
+            };
+            return await finalizeIntersectionPoint(mid);
+        }
+
+        // FALLBACK TO OLD BEHAVIOR:
+        // if both exist but are far apart, still return something instead of MISS
+        if (combinedOk) {
+            return await finalizeIntersectionPoint(combined);
+        }
+
+        const dCenterA = distanceMeters(a, MADISON_CENTER);
+        const dCenterB = distanceMeters(b, MADISON_CENTER);
+        return await finalizeIntersectionPoint(dCenterA <= dCenterB ? a : b);
     }
+
+    // If only one arm resolved, fall back to it
+    if (aOk && !bOk) {
+        return await finalizeIntersectionPoint(a);
+    }
+
+    if (bOk && !aOk) {
+        return await finalizeIntersectionPoint(b);
+    }
+
+    // If neither arm resolved, try combined query as last chance
+    if (combinedOk) {
+        return await finalizeIntersectionPoint(combined);
+    }
+
     return null;
 }
