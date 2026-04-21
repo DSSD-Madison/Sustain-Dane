@@ -8,16 +8,16 @@
     "lng": -89.3625766
   },
   "Albert Ct. / Prairie Ave.": {
-    "lat": 43.0922959,
-    "lng": -89.3531614
+    "lat": 43.1144908,
+    "lng": -89.32595620000001
   },
   "Algoma St. / Hoard St.": {
     "lat": 43.1045519,
     "lng": -89.3520393
   },
   "Allied Dr. / Crescent Rd.": {
-    "lat": 43.0288921,
-    "lng": -89.45528350000001
+    "lat": 43.0316094,
+    "lng": -89.4589802
   },
   "Balsam Rd. / Leland Dr.": {
     "lat": 43.03036325,
@@ -40,52 +40,52 @@
     "lng": -89.31282185
   },
   "Carver St. / Frazer Pl.": {
-    "lat": 43.0772836,
-    "lng": -89.3945662
+    "lat": 43.04427135,
+    "lng": -89.41005705
   },
   "Danbury St. / Lumley Rd.": {
     "lat": 43.03273045,
     "lng": -89.44647885
   },
   "E Johnson St. / N 6th St.": {
-    "lat": 43.078812,
-    "lng": -89.3845837
+    "lat": 43.0790877,
+    "lng": -89.3837009
   },
   "E. Johnson St. / N. 6th St.": {
-    "lat": 43.078812,
-    "lng": -89.3845837
+    "lat": 43.1030421,
+    "lng": -89.3507247
   },
   "Fairfield Pl. / Kedzie St.": {
     "lat": 43.1047845,
     "lng": -89.3482279
   },
   "Fairmont Ave. / Burke Ave.": {
-    "lat": 43.1013621,
-    "lng": -89.3474553
+    "lat": 43.1078405,
+    "lng": -89.330099
   },
   "Fish Hatchery Rd. / Petra Pl.": {
     "lat": 43.0369901,
     "lng": -89.4048351
   },
   "Hanover St / Troy Dr.": {
-    "lat": 43.1337904,
-    "lng": -89.3943319
+    "lat": 43.1367201,
+    "lng": -89.3681256
   },
   "Hayes Rd. / Willage Green Lane E": {
-    "lat": 43.0792875,
-    "lng": -89.5077656
+    "lat": 43.1417553,
+    "lng": -89.3056704
   },
   "Helene Pkwy / Britta Dr.": {
-    "lat": 43.0650888,
-    "lng": -89.3888767
+    "lat": 43.0341325,
+    "lng": -89.4521574
   },
   "Hoard St. / N. Oak St.": {
-    "lat": 43.1051075,
-    "lng": -89.3513536
+    "lat": 43.1052269,
+    "lng": -89.3430585
   },
   "Huxley St. / Schlimgen Ave": {
-    "lat": 43.1157936,
-    "lng": -89.36125985
+    "lat": 43.1158296,
+    "lng": -89.3591682
   },
   "Leland Dr. / Balsam Rd.": {
     "lat": 43.03036325,
@@ -100,56 +100,56 @@
     "lng": -89.331936
   },
   "Monterey Dr. / Trailsway": {
-    "lat": 43.1246898,
-    "lng": -89.36720575000001
+    "lat": 43.0568021,
+    "lng": -89.4674314
   },
   "Moorland Rd. / Warner St.": {
-    "lat": 43.0347133,
-    "lng": -89.37667515
+    "lat": 43.03646285,
+    "lng": -89.37330929999999
   },
   "N Oak St. / Hoard St.": {
-    "lat": 43.1051075,
-    "lng": -89.3513536
+    "lat": 43.1052269,
+    "lng": -89.3430585
   },
   "N. Butler St. / E. Johnson St.": {
-    "lat": 43.0783447,
-    "lng": -89.38363045
+    "lat": 43.1030421,
+    "lng": -89.3507247
   },
   "N. Butler St. / N. Hamilton St.": {
-    "lat": 43.0768126,
-    "lng": -89.3843914
+    "lat": 43.0763481,
+    "lng": -89.384125
   },
   "Northport Dr. / Northridge Terrace": {
-    "lat": 43.139472049999995,
-    "lng": -89.3887109
+    "lat": 43.1282021,
+    "lng": -89.3618414
   },
   "Powers Ave / Wells Ave": {
-    "lat": 43.10500395,
-    "lng": -89.33269215
+    "lat": 43.1006946,
+    "lng": -89.3324047
   },
   "Rethke Ave / Worthington Ave": {
-    "lat": 43.1089476,
-    "lng": -89.3361837
+    "lat": 43.1081388,
+    "lng": -89.3354499
   },
   "Rogers St. / Jenifer St.": {
-    "lat": 43.0770362,
-    "lng": -89.3729197
+    "lat": 43.0774465,
+    "lng": -89.3714275
   },
   "S. Brearly St. / Jenifer St.": {
     "lat": 43.0804203,
     "lng": -89.3674643
   },
   "Sinykin Cir. / Stein Ave": {
-    "lat": 43.073177,
-    "lng": -89.433418
+    "lat": 43.103681449999996,
+    "lng": -89.30417514999999
   },
   "Tempe Dr. / Muir Field Rd.": {
-    "lat": 43.0681561,
-    "lng": -89.3946672
+    "lat": 43.017581,
+    "lng": -89.5100743
   },
   "University Ave. / Chamberlain Ave.": {
-    "lat": 43.0739482,
-    "lng": -89.4055475
+    "lat": 43.0709263,
+    "lng": -89.4230044
   },
   "University Ave. / N. Midvale Blvd.": {
     "lat": 43.073839050000004,
@@ -164,7 +164,7 @@
     "lng": -89.3673988
   },
   "Wyldewood Dr. / Monterey Drive": {
-    "lat": 43.122887750000004,
-    "lng": -89.3679392
+    "lat": 43.0568021,
+    "lng": -89.4674314
   }
 }

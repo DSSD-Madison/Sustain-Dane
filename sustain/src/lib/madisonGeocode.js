@@ -69,12 +69,13 @@ export function fixStreetTypos(segment) {
         .replace(/\bPkwy\b\.?$/i, "Parkway")
         .replace(/\bCir\b\.?$/i, "Circle");
     const fixes = [
+        
         [/\bManona\b/gi, "Monona"],
         [/\bWillage\b/gi, "Village"],
-        [/\bFieldler\b/gi, "Fiedler"],
-        [/\bMuir Field\b/gi, "Muirfield"],
-        [/\bThrush Ln\b/gi, "Thrush Lane"],
-        [/\bVillage Green Lane E\b/gi, "East Village Green Lane"],
+        //[/\bFieldler\b/gi, "Fiedler"],
+        //[/\bMuir Field\b/gi, "Muirfield"],
+        //[/\bThrush Ln\b/gi, "Thrush Lane"],
+        //[/\bVillage Green Lane E\b/gi, "East Village Green Lane"],
     ];
     for (const [re, rep] of fixes) s = s.replace(re, rep);
     return s;
@@ -506,27 +507,90 @@ async function finalizeIntersectionPoint(point) {
 
 function pickBestPhotonCoords(features) {
     if (!features.length) return null;
+
     let best = null;
     let bestScore = Infinity;
+
     for (const f of features) {
-        const cc = (f.properties?.countrycode || "").toUpperCase();
+        const props = f.properties || {};
+        const cc = (props.countrycode || "").toUpperCase();
         if (cc && cc !== "US") continue;
+
         const coords = f.geometry?.coordinates;
         if (!coords) continue;
         const [lng, lat] = coords;
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-        if (!isInMadisonBbox({ lat, lng })) continue;
-        const city = (f.properties?.city || "").toLowerCase();
-        const county = (f.properties?.county || "").toLowerCase();
-        let penalty = 2;
-        if (city === "madison") penalty = 0;
-        else if (county.includes("dane")) penalty = 0.5;
-        const score = distance2ToMadison(lng, lat) + penalty;
+
+        const point = { lat, lng };
+        if (!isInMadisonBbox(point)) continue;
+
+        const city = String(props.city || "").toLowerCase();
+        const county = String(props.county || "").toLowerCase();
+
+        // Base geographic sanity score
+        let score = distance2ToMadison(lng, lat);
+        if (city === "madison") score += 0;
+        else if (county.includes("dane")) score += 0.5;
+        else score += 2;
+
+        // Photon/OSM metadata
+        const osmKey = String(props.osm_key || "").toLowerCase();
+        const osmValue = String(props.osm_value || "").toLowerCase();
+        const type = String(props.type || "").toLowerCase();
+        const name = String(props.name || "").toLowerCase();
+        const street = String(props.street || "").toLowerCase();
+        const housenumber = String(props.housenumber || "").trim();
+        const postcode = String(props.postcode || "").trim();
+
+        // Prefer road/street-like things
+        const looksRoadLike =
+            osmKey === "highway" ||
+            [
+                "residential",
+                "unclassified",
+                "tertiary",
+                "secondary",
+                "primary",
+                "living_street",
+                "road",
+                "service",
+            ].includes(osmValue) ||
+            type.includes("street") ||
+            type.includes("road");
+
+        // Penalize clearly building/address/POI-like things
+        const looksBuildingLike =
+            osmKey === "building" ||
+            osmValue === "building" ||
+            type.includes("building") ||
+            osmKey === "amenity" ||
+            osmKey === "shop" ||
+            osmKey === "tourism" ||
+            osmKey === "leisure" ||
+            osmKey === "office";
+
+        const looksAddressLike =
+            !!housenumber ||
+            type === "house" ||
+            type === "housenumber" ||
+            (street && !!postcode);
+
+        // Scoring adjustments
+        if (looksRoadLike) score -= 3.0;
+        if (name && street && name === street) score -= 0.5;
+
+        if (looksBuildingLike) score += 6.0;
+        if (looksAddressLike) score += 8.0;
+
+        // Tiny preference for unnamed road-like results over specific POIs
+        if (!name && looksRoadLike) score -= 0.25;
+
         if (score < bestScore) {
             bestScore = score;
-            best = { lat, lng };
+            best = point;
         }
     }
+
     return best;
 }
 
@@ -557,7 +621,6 @@ function buildCombinedIntersectionQueries(arm1, arm2) {
         `${arm1} & ${arm2}, Madison, Wisconsin, USA`,
         `intersection of ${arm1} and ${arm2}, Madison, Wisconsin, USA`,
         `${arm1}, ${arm2}, Madison, Wisconsin, USA`,
-        `${arm1} ${arm2}, Madison, Wisconsin, USA`,
     ];
 }
 
@@ -565,7 +628,6 @@ function buildStreetArmQueries(arm) {
     return [
         `${arm}, Madison, Wisconsin, USA`,
         `${arm}, Madison WI`,
-        arm,
     ];
 }
 
@@ -614,64 +676,38 @@ export async function geocodeCrossStreetIntersection(label) {
 
     const [arm1, arm2] = arms;
 
-    // Always geocode both arms first
+    // 1. Try several combined intersection query formats first
+    const combined = await photonGeocodeCombinedIntersection(arm1, arm2);
+    const finalCombined = await finalizeIntersectionPoint(combined);
+    if (finalCombined) return finalCombined;
+
+    // 2. Fall back to per-arm geocoding
+    await sleep(180);
     const a = await photonGeocodeStreetArm(arm1);
     await sleep(180);
     const b = await photonGeocodeStreetArm(arm2);
 
-    const aOk = a && isInMadisonBbox(a);
-    const bOk = b && isInMadisonBbox(b);
-
-    // Also try a combined intersection-style query
-    await sleep(120);
-    const combined = await photonGeocodeCombinedIntersection(arm1, arm2);
-    const combinedOk = combined && isInMadisonBbox(combined);
-
-    // Best case: both arms resolved
-    if (aOk && bOk) {
+    if (a && b && isInMadisonBbox(a) && isInMadisonBbox(b)) {
         const apart = distanceMeters(a, b);
 
-        // Prefer combined query if it is plausibly near BOTH arms
-        if (combinedOk) {
-            const d1 = distanceMeters(combined, a);
-            const d2 = distanceMeters(combined, b);
-            if (d1 <= 700 && d2 <= 700) {
-                return await finalizeIntersectionPoint(combined);
-            }
-        }
-
-        // Otherwise use midpoint if the two arm geocodes are reasonably close
+        // stricter midpoint if streets geocode close enough
         if (apart <= 1200) {
             const mid = {
                 lat: (a.lat + b.lat) / 2,
                 lng: (a.lng + b.lng) / 2,
             };
-            return await finalizeIntersectionPoint(mid);
+            const finalMid = await finalizeIntersectionPoint(mid);
+            if (finalMid) return finalMid;
         }
-
-        // FALLBACK TO OLD BEHAVIOR:
-        // if both exist but are far apart, still return something instead of MISS
-        if (combinedOk) {
-            return await finalizeIntersectionPoint(combined);
-        }
-
-        const dCenterA = distanceMeters(a, MADISON_CENTER);
-        const dCenterB = distanceMeters(b, MADISON_CENTER);
-        return await finalizeIntersectionPoint(dCenterA <= dCenterB ? a : b);
     }
 
-    // If only one arm resolved, fall back to it
-    if (aOk && !bOk) {
+    // 3. Last resort: if one arm resolved and the other didn't, return the one
+    // that worked rather than MISS
+    if (a && isInMadisonBbox(a)) {
         return await finalizeIntersectionPoint(a);
     }
-
-    if (bOk && !aOk) {
+    if (b && isInMadisonBbox(b)) {
         return await finalizeIntersectionPoint(b);
-    }
-
-    // If neither arm resolved, try combined query as last chance
-    if (combinedOk) {
-        return await finalizeIntersectionPoint(combined);
     }
 
     return null;
