@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background tile -->
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#064e3b"/>
+
+  <!-- House walls -->
+  <path
+    d="M12 30 L32 13 L52 30 L52 54 L12 54 Z"
+    fill="url(#wall)"
+    stroke="#064e3b"
+    stroke-width="2"
+    stroke-linejoin="round"/>
+
+  <!-- Roof -->
+  <path
+    d="M8 32 L32 11 L56 32 L52 35 L32 18 L12 35 Z"
+    fill="url(#roof)"
+    stroke="#064e3b"
+    stroke-width="2"
+    stroke-linejoin="round"/>
+
+  <!-- Door -->
+  <rect x="28" y="40" width="8" height="14" rx="1.5" fill="#047857"/>
+  <circle cx="34" cy="47" r="0.9" fill="#ecfdf5"/>
+
+  <!-- Window -->
+  <rect x="17" y="36" width="8" height="8" rx="1" fill="#bbf7d0" stroke="#064e3b" stroke-width="1"/>
+  <line x1="21" y1="36" x2="21" y2="44" stroke="#064e3b" stroke-width="1"/>
+  <line x1="17" y1="40" x2="25" y2="40" stroke="#064e3b" stroke-width="1"/>
+
+  <!-- Leaf on roof (sustainability mark) -->
+  <path
+    d="M39 22 C39 17 43 14 48 14 C48 19 44 22 39 22 Z"
+    fill="#bbf7d0"
+    stroke="#064e3b"
+    stroke-width="1"
+    stroke-linejoin="round"/>
+  <path
+    d="M39 22 C42 20 45 17 48 14"
+    stroke="#064e3b"
+    stroke-width="1"
+    stroke-linecap="round"
+    fill="none"/>
+</svg>
